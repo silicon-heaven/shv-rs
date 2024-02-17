@@ -58,17 +58,28 @@ impl<R: AsyncRead + Unpin + Send> FrameReader for StreamFrameReader<R> {
             to_read -= n;
         }
         let protocol = data[0];
-        if protocol != Protocol::ChainPack as u8 {
-            return Err("Not chainpack message".into());
-        }
-        let mut buffrd = BufReader::new(&data[1..]);
-        let mut rd = ChainPackReader::new(&mut buffrd);
-        if let Ok(Some(meta)) = rd.try_read_meta() {
-            let pos = rd.position() + 1;
-            let data: Vec<_> = data.drain(pos .. ).collect();
-            let frame = RpcFrame { protocol: Protocol::ChainPack, meta, data };
-            log!(target: "RpcMsg", Level::Debug, "R==> {}", &frame);
-            return Ok(frame);
+        if protocol == Protocol::ChainPack as u8 {
+            let mut buffrd = BufReader::new(&data[1..]);
+            let mut rd = ChainPackReader::new(&mut buffrd);
+            if let Ok(Some(meta)) = rd.try_read_meta() {
+                let pos = rd.position() + 1;
+                let data: Vec<_> = data.drain(pos .. ).collect();
+                let frame = RpcFrame { protocol: Protocol::ChainPack, meta, data };
+                log!(target: "RpcMsg", Level::Debug, "R==> {}", &frame);
+                return Ok(frame);
+            }
+        } else if protocol == Protocol::Cpon as u8 {
+            let mut buffrd = BufReader::new(&data[1..]);
+            let mut rd = crate::CponReader::new(&mut buffrd);
+            if let Ok(Some(meta)) = rd.try_read_meta() {
+                let pos = rd.position() + 1;
+                let data: Vec<_> = data.drain(pos .. ).collect();
+                let frame = RpcFrame { protocol: Protocol::Cpon, meta, data };
+                log!(target: "RpcMsg", Level::Debug, "R==> {}", &frame);
+                return Ok(frame);
+            }
+        } else {
+            return Err("Unknown protocol".into());
         }
         return Err("Meta data read error".into());
         }

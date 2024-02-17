@@ -3,6 +3,7 @@ use std::io::{BufReader};
 use crate::{ChainPackReader, ChainPackWriter, MetaMap, RpcMessage, RpcMessageMetaTags, rpctype, RpcValue};
 use crate::writer::Writer;
 use crate::reader::Reader;
+use crate::CponReader;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RpcFrame {
@@ -15,10 +16,12 @@ pub struct RpcFrame {
 pub enum Protocol {
     ResetSession = 0,
     ChainPack = 1,
+    Cpon = 2,
 }
 impl fmt::Display for Protocol {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Protocol::Cpon => write!(fmt, "{}", "Cpon"),
             Protocol::ChainPack => write!(fmt, "{}", "ChainPack"),
             Protocol::ResetSession => write!(fmt, "{}", "ResetSession"),
         }
@@ -29,13 +32,19 @@ impl RpcFrame {
         RpcFrame { protocol, meta, data }
     }
     pub fn from_rpcmessage(msg: &RpcMessage) -> crate::Result<RpcFrame> {
+        Self::from_rpcmessage2(msg, Protocol::ChainPack)
+    }
+    pub fn from_rpcmessage2(msg: &RpcMessage, protocol: Protocol) -> crate::Result<RpcFrame> {
         let mut data = Vec::new();
-        {
+        if protocol == Protocol::Cpon {
+            let mut wr = crate::CponWriter::new(&mut data);
+            wr.write_value(&msg.as_rpcvalue().value())?;
+        } else {
             let mut wr = ChainPackWriter::new(&mut data);
             wr.write_value(&msg.as_rpcvalue().value())?;
         }
         let meta = msg.as_rpcvalue().meta().clone();
-        Ok(RpcFrame { protocol: Protocol::ChainPack, meta, data })
+        Ok(RpcFrame { protocol, meta, data })
     }
     pub fn to_rpcmesage(&self) -> crate::Result<RpcMessage> {
         let mut buff = BufReader::new(&*self.data);
@@ -43,6 +52,10 @@ impl RpcFrame {
         match &self.protocol {
             Protocol::ChainPack => {
                 let mut rd = ChainPackReader::new(&mut buff);
+                value = rd.read_value()?;
+            }
+            Protocol::Cpon => {
+                let mut rd = CponReader::new(&mut buff);
                 value = rd.read_value()?;
             }
             _ => {

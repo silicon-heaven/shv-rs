@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use std::fmt;
 use std::convert::TryFrom;
 use std::fmt::{Debug, Display, Formatter};
-use crate::rpcframe::RpcFrame;
+use crate::rpcframe::{Protocol, RpcFrame};
 
 static G_RPC_REQUEST_COUNT: AtomicI64 = AtomicI64::new(0);
 
@@ -17,13 +17,16 @@ pub type CliId = i32;
 #[allow(dead_code)]
 pub enum Tag {
     RequestId = rpctype::Tag::USER as isize, // 8
-    ShvPath, // 9
-    Method,  // 10
-    CallerIds, // 11
-    ProtocolType, //needed when destination client is using different version than source one to translate raw message data to correct format
-    RevCallerIds,
-    Access,
-    UserId,
+    ShvPath = 9,
+    Method = 10,
+    CallerIds = 11,
+    // ProtocolType = 12, //needed when destination client is using different version than source one to translate raw message data to correct format
+    RespCallerIds = 13,
+    Access = 14,
+    // TunnelCtl = 15
+    UserId = 16,
+    AccessLevel = 17,
+    Part = 18,
     MAX
 }
 
@@ -60,6 +63,9 @@ impl RpcMessage {
     }
     pub fn to_frame(&self) -> crate::Result<RpcFrame> {
         RpcFrame::from_rpcmessage(self)
+    }
+    pub fn to_frame2(&self, protocol: Protocol) -> crate::Result<RpcFrame> {
+        RpcFrame::from_rpcmessage2(self, protocol)
     }
     pub fn param(&self) -> Option<&RpcValue> { self.key(Key::Params as i32) }
     pub fn set_param(&mut self, rv: RpcValue) -> &mut Self  { self.set_key(Key::Params, Some(rv)); self }

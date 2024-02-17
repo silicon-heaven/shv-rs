@@ -384,7 +384,9 @@ impl<'a, R> CponReader<'a, R>
     pub fn new(read: &'a mut R) -> Self {
         CponReader { byte_reader: ByteReader::new(read) }
     }
-
+    pub fn position(&self) -> usize {
+        self.byte_reader.pos
+    }
     fn peek_byte(&mut self) -> u8 {
         self.byte_reader.peek_byte()
     }

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use crate::rpcframe::{Protocol, RpcFrame};
 use crate::{ChainPackWriter, MetaMap, RpcMessage, RpcMessageMetaTags, RpcValue, Writer};
 use crate::rpcmessage::{RpcError, RpcErrorCode, RqId};
+
 #[async_trait]
 pub trait FrameReader {
     async fn receive_frame(&mut self) -> crate::Result<RpcFrame>;
@@ -53,6 +54,12 @@ pub fn serialize_meta(frame: &RpcFrame) -> crate::Result<Vec<u8>> {
         Protocol::ChainPack => {
             let mut data: Vec<u8> = Vec::new();
             let mut wr = ChainPackWriter::new(&mut data);
+            wr.write_meta(&frame.meta)?;
+            data
+        }
+        Protocol::Cpon => {
+            let mut data: Vec<u8> = Vec::new();
+            let mut wr = crate::cpon::CponWriter::new(&mut data);
             wr.write_meta(&frame.meta)?;
             data
         }
